@@ -2,7 +2,9 @@ package com.example.workmanagerdemo1
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.widget.Toast
 import androidx.lifecycle.Observer
+import androidx.work.Constraints
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import com.example.workmanagerdemo1.databinding.ActivityMainBinding
@@ -18,9 +20,13 @@ class MainActivity : AppCompatActivity() {
 
      fun setOneTimeWorkRequest() {
          val workManager = WorkManager.getInstance(applicationContext)
+         val constraints = Constraints.Builder()
+             .setRequiresCharging(true)
+             .build()
 
          val oneTimeWorkRequest = OneTimeWorkRequest.Builder(UploadWorker::class.java)
-            .build()
+             .setConstraints(constraints)
+             .build()
          workManager.enqueue(oneTimeWorkRequest)
          workManager.getWorkInfoByIdLiveData(oneTimeWorkRequest.id)
              .observe(this, Observer {
