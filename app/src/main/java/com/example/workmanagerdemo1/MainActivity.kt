@@ -4,11 +4,9 @@ import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
 import androidx.lifecycle.Observer
-import androidx.work.Constraints
-import androidx.work.Data
-import androidx.work.OneTimeWorkRequest
-import androidx.work.WorkManager
+import androidx.work.*
 import com.example.workmanagerdemo1.databinding.ActivityMainBinding
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
@@ -22,6 +20,8 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         binding.main = this
+
+        setPeriodicWorkRequest()
     }
 
      fun setOneTimeWorkRequest() {
@@ -33,12 +33,31 @@ class MainActivity : AppCompatActivity() {
              .setRequiresCharging(true)
              .build()
 
-         val oneTimeWorkRequest = OneTimeWorkRequest.Builder(UploadWorker::class.java)
+         val uploadRequest = OneTimeWorkRequest.Builder(UploadWorker::class.java)
              .setConstraints(constraints)
              .setInputData(data)
              .build()
-         workManager.enqueue(oneTimeWorkRequest)
-         workManager.getWorkInfoByIdLiveData(oneTimeWorkRequest.id)
+
+         val filteringRequest = OneTimeWorkRequest.Builder(FilteringWorker::class.java)
+             .build()
+
+         val compressingRequest = OneTimeWorkRequest.Builder(CompressingWorker::class.java)
+             .build()
+
+         val downloadingWorker = OneTimeWorkRequest.Builder(DownloadingWorker::class.java)
+             .build()
+
+         val parallelWorks = mutableListOf<OneTimeWorkRequest>()
+         parallelWorks.add(downloadingWorker)
+         parallelWorks.add(filteringRequest)
+         workManager
+             .beginWith(parallelWorks)
+             .then(compressingRequest)
+             .then(uploadRequest)
+             .enqueue()
+
+         workManager.enqueue(uploadRequest)
+         workManager.getWorkInfoByIdLiveData(uploadRequest.id)
              .observe(this, Observer {
                  binding.textView.text = it.state.name.toString()
                  if(it.state.isFinished) {
@@ -49,5 +68,12 @@ class MainActivity : AppCompatActivity() {
                  }
              })
 
+    }
+
+    private fun setPeriodicWorkRequest() {
+        val periodicWorkRequest = PeriodicWorkRequest
+            .Builder(DownloadingWorker::class.java, 16, TimeUnit.MINUTES)
+            .build()
+    WorkManager.getInstance(applicationContext).enqueue(periodicWorkRequest)
     }
 }
